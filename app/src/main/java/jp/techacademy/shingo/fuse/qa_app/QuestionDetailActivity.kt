@@ -4,6 +4,7 @@ import android.content.Intent
 import android.os.Build
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
+import android.view.View
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.*
 import jp.techacademy.shingo.fuse.qa_app.databinding.ActivityQuestionDetailBinding
@@ -77,6 +78,23 @@ class QuestionDetailActivity : AppCompatActivity() {
                 intent.putExtra("question", question)
                 startActivity(intent)
             }
+
+            binding.favoriteImage.setOnClickListener{
+
+
+                setImageResource(if (isFavorite) R.drawable.ic_star else R.drawable.ic_star_border)
+
+            }
+        }
+
+        val user = FirebaseAuth.getInstance().currentUser
+        if (user != null) {
+            // ログインしている場合の処理
+            binding.favoriteImage.visibility = View.VISIBLE
+        } else {
+            // ログインしていない場合の処理
+            binding.favoriteImage.visibility = View.GONE
+
         }
 
         val dataBaseReference = FirebaseDatabase.getInstance().reference

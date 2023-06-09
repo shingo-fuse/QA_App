@@ -25,6 +25,7 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
 
     private var genreRef: DatabaseReference? = null
 
+    //Firebase Realtime Database の ChildEventListener を使用してデータの変更を監視し、新しい子要素が追加されたときに呼び出されるコールバック関数
     private val eventListener = object : ChildEventListener {
         override fun onChildAdded(dataSnapshot: DataSnapshot, s: String?) {
             val map = dataSnapshot.value as Map<*, *>
@@ -169,7 +170,7 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         menuInflater.inflate(R.menu.menu_main, menu)
         return true
     }
-
+    // 設定画面
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         val id = item.itemId
 

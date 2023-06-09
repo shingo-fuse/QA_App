@@ -3,6 +3,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:padding="16dp"
     tools:context=".QuestionDetailActivity">
 
@@ -24,4 +25,17 @@
         tools:ignore="ContentDescription,SpeakableTextPresentCheck,ImageContrastCheck" />
 
 
-</RelativeLayout>
+
+        <ImageView
+            android:id="@+id/favoriteImage"
+            android:layout_width="65dp"
+            android:layout_height="65dp"
+            android:layout_alignParentBottom="true"
+            android:layout_alignParentStart="true"
+            android:src="@drawable/ic_star_border"
+            android:layout_margin="16dp"
+            android:layout_marginRight="60dp"
+            app:tint="@android:color/holo_orange_light"/>
+
+
+    </RelativeLayout>

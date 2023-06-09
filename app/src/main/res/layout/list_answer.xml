@@ -11,6 +11,8 @@
         android:layout_alignParentTop="true"
         android:text="@string/question_contents" />
 
+
+
     <TextView
         android:id="@+id/nameTextView"
         android:layout_width="wrap_content"
