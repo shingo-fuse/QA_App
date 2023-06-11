@@ -6,14 +6,15 @@ import androidx.appcompat.app.AppCompatActivity
 import android.util.Base64
 import android.view.Menu
 import android.view.MenuItem
+import android.view.View
 import androidx.appcompat.app.ActionBarDrawerToggle // 追加
+import androidx.core.content.ContextCompat.startActivity
 import androidx.core.view.GravityCompat // 追加
 import com.google.android.material.navigation.NavigationView // 追加
 import com.google.android.material.snackbar.Snackbar
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.*
 import jp.techacademy.shingo.fuse.qa_app.databinding.ActivityMainBinding
-
 class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelectedListener {
     private lateinit var binding: ActivityMainBinding
 
@@ -33,6 +34,7 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
             val body = map["body"] as? String ?: ""
             val name = map["name"] as? String ?: ""
             val uid = map["uid"] as? String ?: ""
+            val favorite = map["favorite"] as? Int ?: 0
             val imageString = map["image"] as? String ?: ""
             val bytes =
                 if (imageString.isNotEmpty()) {
@@ -48,18 +50,23 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
                     val map1Body = map1["body"] as? String ?: ""
                     val map1Name = map1["name"] as? String ?: ""
                     val map1Uid = map1["uid"] as? String ?: ""
+                    val map1Favorite = map1["favorite"] as? Int ?: 0
                     val map1AnswerUid = key as? String ?: ""
-                    val answer = Answer(map1Body, map1Name, map1Uid, map1AnswerUid)
+                    val answer = Answer(map1Body, map1Name, map1Uid, map1AnswerUid, map1Favorite)
                     answerArrayList.add(answer)
                 }
+
+
             }
             val question = Question(
                 title, body, name, uid, dataSnapshot.key ?: "",
-                genre, bytes, answerArrayList
+                favorite, genre, bytes, answerArrayList
             )
             questionArrayList.add(question)
             adapter.notifyDataSetChanged()
+
         }
+
         override fun onChildChanged(dataSnapshot: DataSnapshot, s: String?) {
             val map = dataSnapshot.value as Map<*, *>
 
@@ -75,8 +82,10 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
                             val map1Body = map1["body"] as? String ?: ""
                             val map1Name = map1["name"] as? String ?: ""
                             val map1Uid = map1["uid"] as? String ?: ""
+                            val map1Favorite = map1["favorite"] as? Int ?: 0
                             val map1AnswerUid = key as? String ?: ""
-                            val answer = Answer(map1Body, map1Name, map1Uid, map1AnswerUid)
+                            val answer =
+                                Answer(map1Body, map1Name, map1Uid, map1AnswerUid, map1Favorite)
                             question.answers.add(answer)
                         }
                     }
@@ -85,6 +94,7 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
                 }
             }
         }
+
 
         override fun onChildRemoved(p0: DataSnapshot) {}
         override fun onChildMoved(p0: DataSnapshot, p1: String?) {}
@@ -99,7 +109,7 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
 
         setSupportActionBar(binding.content.toolbar)
 
-        // ----- 修正:ここから
+
         binding.content.fab.setOnClickListener {
             // ジャンルを選択していない場合はメッセージを表示するだけ
             if (genre == 0) {
@@ -138,6 +148,13 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         binding.drawerLayout.addDrawerListener(toggle)
         toggle.syncState()
 
+        val user = FirebaseAuth.getInstance().currentUser
+        if (user == null) {
+            val navView = findViewById<NavigationView>(R.id.nav_view)
+            val menu = navView.menu
+            menu.removeItem(R.id.nav_favorite)
+        }
+
         binding.navView.setNavigationItemSelectedListener(this)
         // Firebase
         databaseReference = FirebaseDatabase.getInstance().reference
@@ -152,24 +169,44 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
             val intent = Intent(applicationContext, QuestionDetailActivity::class.java)
             intent.putExtra("question", questionArrayList[position])
             startActivity(intent)
+
         }
     }
+
 
     override fun onResume() {
         super.onResume()
         val navigationView = findViewById<NavigationView>(R.id.nav_view)
 
         // 1:趣味を既定の選択とする
-        if(genre == 0) {
+        if (genre == 0) {
             onNavigationItemSelected(navigationView.menu.getItem(0))
         }
+        }
+
+    override fun onRestart() {
+        super.onRestart()
+        val user = FirebaseAuth.getInstance().currentUser
+        if (user != null) {
+            val navView = findViewById<NavigationView>(R.id.nav_view)
+            val menu = navView.menu
+            menu.add(R.id.content, R.id.nav_favorite,5, getString(R.string.menu_favorite_label))
+        }else{
+            val navView = findViewById<NavigationView>(R.id.nav_view)
+            val menu = navView.menu
+            menu.removeItem(R.id.nav_favorite)
+
+        }
+
     }
+
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
         // Inflate the menu; this adds items to the action bar if it is present.
         menuInflater.inflate(R.menu.menu_main, menu)
         return true
     }
+
     // 設定画面
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         val id = item.itemId
@@ -182,6 +219,7 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
 
         return super.onOptionsItemSelected(item)
     }
+
 
     override fun onNavigationItemSelected(item: MenuItem): Boolean {
         when (item.itemId) {
@@ -200,6 +238,10 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
             R.id.nav_computer -> {
                 binding.content.toolbar.title = getString(R.string.menu_computer_label)
                 genre = 4
+            }
+            R.id.nav_favorite -> {
+                binding.content.toolbar.title = getString(R.string.menu_favorite_label)
+                genre = 5
             }
         }
 

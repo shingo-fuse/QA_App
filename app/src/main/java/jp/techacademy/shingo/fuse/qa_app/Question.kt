@@ -9,10 +9,12 @@ class Question(
     val name: String,
     val uid: String,
     val questionUid: String,
+    val favorite:Int,
     val genre: Int,
     bytes: ByteArray,
-    val answers: ArrayList<Answer>
-) : Serializable {
+    val answers: ArrayList<Answer>,
+
+    ) : Serializable {
     val imageBytes: ByteArray
 
     init {

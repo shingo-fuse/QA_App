@@ -11,3 +11,6 @@ const val AnswersPATH = "answers"
 
 //preferenceに表示名を保存する時のキー
 const val NameKEY = "name"
+
+//favoriteを保存するパス
+const val FavoritePATH = "favorites"
