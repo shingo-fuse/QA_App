@@ -9,8 +9,7 @@ class Question(
     val name: String,
     val uid: String,
     val questionUid: String,
-    val favorite:Int,
-    val genre: Int,
+    var genre: String?,
     bytes: ByteArray,
     val answers: ArrayList<Answer>,
 
@@ -18,6 +17,7 @@ class Question(
     val imageBytes: ByteArray
 
     init {
-        imageBytes = bytes.clone()
+            imageBytes = bytes.clone()
+
     }
 }

@@ -6,7 +6,6 @@ import androidx.appcompat.app.AppCompatActivity
 import android.util.Base64
 import android.view.Menu
 import android.view.MenuItem
-import android.view.View
 import androidx.appcompat.app.ActionBarDrawerToggle // 追加
 import androidx.core.content.ContextCompat.startActivity
 import androidx.core.view.GravityCompat // 追加
@@ -17,16 +16,16 @@ import com.google.firebase.database.*
 import jp.techacademy.shingo.fuse.qa_app.databinding.ActivityMainBinding
 class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelectedListener {
     private lateinit var binding: ActivityMainBinding
-
     private var genre = 0
 
     private lateinit var databaseReference: DatabaseReference
     private lateinit var questionArrayList: ArrayList<Question>
     private lateinit var adapter: QuestionsListAdapter
-
     private var genreRef: DatabaseReference? = null
+    private var favoriteRef: DatabaseReference? = null
 
-    //Firebase Realtime Database の ChildEventListener を使用してデータの変更を監視し、新しい子要素が追加されたときに呼び出されるコールバック関数
+
+
     private val eventListener = object : ChildEventListener {
         override fun onChildAdded(dataSnapshot: DataSnapshot, s: String?) {
             val map = dataSnapshot.value as Map<*, *>
@@ -34,7 +33,6 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
             val body = map["body"] as? String ?: ""
             val name = map["name"] as? String ?: ""
             val uid = map["uid"] as? String ?: ""
-            val favorite = map["favorite"] as? Int ?: 0
             val imageString = map["image"] as? String ?: ""
             val bytes =
                 if (imageString.isNotEmpty()) {
@@ -50,22 +48,20 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
                     val map1Body = map1["body"] as? String ?: ""
                     val map1Name = map1["name"] as? String ?: ""
                     val map1Uid = map1["uid"] as? String ?: ""
-                    val map1Favorite = map1["favorite"] as? Int ?: 0
                     val map1AnswerUid = key as? String ?: ""
-                    val answer = Answer(map1Body, map1Name, map1Uid, map1AnswerUid, map1Favorite)
+                    val answer = Answer(map1Body, map1Name, map1Uid, map1AnswerUid)
                     answerArrayList.add(answer)
                 }
-
 
             }
             val question = Question(
                 title, body, name, uid, dataSnapshot.key ?: "",
-                favorite, genre, bytes, answerArrayList
+                genre.toString(), bytes, answerArrayList
             )
             questionArrayList.add(question)
             adapter.notifyDataSetChanged()
-
         }
+
 
         override fun onChildChanged(dataSnapshot: DataSnapshot, s: String?) {
             val map = dataSnapshot.value as Map<*, *>
@@ -82,10 +78,9 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
                             val map1Body = map1["body"] as? String ?: ""
                             val map1Name = map1["name"] as? String ?: ""
                             val map1Uid = map1["uid"] as? String ?: ""
-                            val map1Favorite = map1["favorite"] as? Int ?: 0
                             val map1AnswerUid = key as? String ?: ""
                             val answer =
-                                Answer(map1Body, map1Name, map1Uid, map1AnswerUid, map1Favorite)
+                                Answer(map1Body, map1Name, map1Uid, map1AnswerUid)
                             question.answers.add(answer)
                         }
                     }
@@ -93,10 +88,12 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
                     adapter.notifyDataSetChanged()
                 }
             }
+
         }
 
+        override fun onChildRemoved(dataSnapshot: DataSnapshot) {
+        }
 
-        override fun onChildRemoved(p0: DataSnapshot) {}
         override fun onChildMoved(p0: DataSnapshot, p1: String?) {}
         override fun onCancelled(p0: DatabaseError) {}
     }
@@ -106,6 +103,9 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
+
+
+
 
         setSupportActionBar(binding.content.toolbar)
 
@@ -150,9 +150,11 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
 
         val user = FirebaseAuth.getInstance().currentUser
         if (user == null) {
-            val navView = findViewById<NavigationView>(R.id.nav_view)
-            val menu = navView.menu
-            menu.removeItem(R.id.nav_favorite)
+            val navigationView = findViewById<NavigationView>(R.id.nav_view)
+            val menu = navigationView.menu
+            val favoriteItem = menu.findItem(R.id.nav_favorite)
+            favoriteItem.isVisible = false  // アイテムを非表示にする
+
         }
 
         binding.navView.setNavigationItemSelectedListener(this)
@@ -179,25 +181,26 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         val navigationView = findViewById<NavigationView>(R.id.nav_view)
 
         // 1:趣味を既定の選択とする
-        if (genre == 0) {
+        if (genre == 0 || genre==5 ) {
             onNavigationItemSelected(navigationView.menu.getItem(0))
         }
-        }
+
+    }
 
     override fun onRestart() {
         super.onRestart()
         val user = FirebaseAuth.getInstance().currentUser
         if (user != null) {
-            val navView = findViewById<NavigationView>(R.id.nav_view)
-            val menu = navView.menu
-            menu.add(R.id.content, R.id.nav_favorite,5, getString(R.string.menu_favorite_label))
+            val navigationView = findViewById<NavigationView>(R.id.nav_view)
+            val menu = navigationView.menu
+            val favoriteItem = menu.findItem(R.id.nav_favorite)
+            favoriteItem.isVisible = true
         }else{
-            val navView = findViewById<NavigationView>(R.id.nav_view)
-            val menu = navView.menu
-            menu.removeItem(R.id.nav_favorite)
-
+            val navigationView = findViewById<NavigationView>(R.id.nav_view)
+            val menu = navigationView.menu
+            val favoriteItem = menu.findItem(R.id.nav_favorite)
+            favoriteItem.isVisible = false
         }
-
     }
 
 
@@ -241,10 +244,15 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
             }
             R.id.nav_favorite -> {
                 binding.content.toolbar.title = getString(R.string.menu_favorite_label)
+                //intentから戻ってきた時に、趣味に戻るようにonResumeで使用するために、genre５を設定しました。
                 genre = 5
-            }
-        }
 
+                val intent = Intent(this, FavoriteActivity::class.java)
+                startActivity(intent)
+
+            }
+
+        }
         binding.drawerLayout.closeDrawer(GravityCompat.START)
 
         // 質問のリストをクリアしてから再度Adapterにセットし、AdapterをListViewにセットし直す

@@ -4,9 +4,11 @@ import android.content.Intent
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
+import android.view.MenuItem
 import android.view.View
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat.startActivity
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.*
 import jp.techacademy.shingo.fuse.qa_app.databinding.ActivityQuestionDetailBinding
@@ -20,10 +22,6 @@ class QuestionDetailActivity : AppCompatActivity() {
     private lateinit var answerRef: DatabaseReference
     private lateinit var favoriteRef: DatabaseReference
 
-
-    private var favorite: Int = 0
-
-
     private val eventListener = object : ChildEventListener {
         override fun onChildAdded(dataSnapshot: DataSnapshot, s: String?) {
             val map = dataSnapshot.value as Map<*, *>
@@ -36,20 +34,43 @@ class QuestionDetailActivity : AppCompatActivity() {
                     return
                 }
             }
-
             val body = map["body"] as? String ?: ""
             val name = map["name"] as? String ?: ""
             val uid = map["uid"] as? String ?: ""
-            val favorite = map["favorite"] as? Int ?: 0
-
-
-            val answer = Answer(body, name, uid, answerUid, favorite)
+            val answer = Answer(body, name, uid, answerUid)
             question.answers.add(answer)
             adapter.notifyDataSetChanged()
         }
 
-        override fun onChildChanged(dataSnapshot: DataSnapshot, s: String?) {}
+        override fun onChildChanged(dataSnapshot: DataSnapshot, s: String?) {
+            val map = dataSnapshot.value as Map<*, *>
+
+            // 変更があったQuestionを探す
+            if (dataSnapshot.key.equals(question.questionUid)) {
+                // このアプリで変更がある可能性があるのは回答（Answer)のみ
+                question.answers.clear()
+                val answerMap = map["answers"] as Map<*, *>?
+                if (answerMap != null) {
+                    for (key in answerMap.keys) {
+                        val map1 = answerMap[key] as Map<*, *>
+                        val map1Body = map1["body"] as? String ?: ""
+                        val map1Name = map1["name"] as? String ?: ""
+                        val map1Uid = map1["uid"] as? String ?: ""
+                        val map1AnswerUid = key as? String ?: ""
+                        val answer =
+                            Answer(map1Body, map1Name, map1Uid, map1AnswerUid)
+                        question.answers.add(answer)
+                    }
+
+
+                    adapter.notifyDataSetChanged()
+                }
+            }
+
+        }
+
         override fun onChildRemoved(dataSnapshot: DataSnapshot) {}
+
         override fun onChildMoved(dataSnapshot: DataSnapshot, s: String?) {}
         override fun onCancelled(databaseError: DatabaseError) {}
     }
@@ -58,6 +79,8 @@ class QuestionDetailActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityQuestionDetailBinding.inflate(layoutInflater)
         setContentView(binding.root)
+
+
 
         // 渡ってきたQuestionのオブジェクトを保持する
         // API33以上でgetSerializableExtra(key)が非推奨となったため処理を分岐
@@ -97,51 +120,57 @@ class QuestionDetailActivity : AppCompatActivity() {
         answerRef.addChildEventListener(eventListener)
 
 
-
         val user = FirebaseAuth.getInstance().currentUser
         if (user != null) {
-
             binding.favoriteImage.visibility = View.VISIBLE
-        favoriteRef = dataBaseReference.child(FavoritePATH).child(question.uid).child(question.questionUid)
 
-        favoriteRef.addValueEventListener(object : ValueEventListener {
+            favoriteRef=
+            dataBaseReference.child(FavoritePATH).child(user.uid).child(question.questionUid)
+
+            favoriteSearch()
+
+            binding.favoriteImage.setOnClickListener {
+                favoriteRef.addListenerForSingleValueEvent(object : ValueEventListener {
+                    override fun onDataChange(dataSnapshot: DataSnapshot) {
+                        if (dataSnapshot.exists()) {
+                            AlertDialog.Builder(this@QuestionDetailActivity)
+                                .setTitle(R.string.delete_favorite_dialog_title)
+                                .setMessage(R.string.delete_favorite_dialog_message)
+                                .setPositiveButton(android.R.string.ok) { _, _ ->
+                                    favoriteRef.removeValue()
+                                    favoriteSearch()
+                                } .setNegativeButton(android.R.string.cancel) { _, _ -> }
+                                .create()
+                                .show()
+                        } else {
+                            favoriteRef.child("genre").setValue(question.genre.toString())
+
+                            favoriteSearch()
+                        }
+                    }
+
+                    override fun onCancelled(databaseError: DatabaseError) {}
+                })
+            } } else {
+            // ログインしていない場合の処理
+            binding.favoriteImage.visibility = View.GONE
+        }
+    }
+
+    private  fun favoriteSearch(){
+        favoriteRef.child("genre").addListenerForSingleValueEvent(object : ValueEventListener {
             override fun onDataChange(dataSnapshot: DataSnapshot) {
-                favorite = dataSnapshot.child("favorite").getValue(Int::class.java) ?: 0
-                binding.favoriteImage.setImageResource(if (favorite == 1) R.drawable.ic_star else R.drawable.ic_star_border)
+                if (dataSnapshot.exists()) {
+                    binding.favoriteImage.setImageResource(R.drawable.ic_star)
+                } else {
+                    binding.favoriteImage.setImageResource(R.drawable.ic_star_border)
+                }
             }
 
-            override fun onCancelled(error: DatabaseError) {
-            }
+            override fun onCancelled(databaseError: DatabaseError) {}
         })
 
-        binding.favoriteImage.setOnClickListener {
-            if (favorite == 1) {
-                AlertDialog.Builder(this)
-                    .setTitle(R.string.delete_favorite_dialog_title)
-                    .setMessage(R.string.delete_favorite_dialog_message)
-                    .setPositiveButton(android.R.string.ok) { _, _ ->
-                         favorite = 0
-                        binding.favoriteImage.setImageResource(if (favorite == 1) R.drawable.ic_star else R.drawable.ic_star_border)
-                        saveFavoriteAddDate(question.questionUid, favorite)
-                    }
-                    .setNegativeButton(android.R.string.cancel) { _, _ -> }
-                    .create()
-                    .show()
-            } else {
-                val favorite = 1
-                binding.favoriteImage.setImageResource(if (favorite == 1) R.drawable.ic_star else R.drawable.ic_star_border)
-                saveFavoriteAddDate(question.questionUid, favorite)
-            }
-        }
-    } else {
-        // ログインしていない場合の処理
-        binding.favoriteImage.visibility = View.GONE
     }
-}
-
-private fun saveFavoriteAddDate(questionUid: String, favorite: Int) {
-    favoriteRef.child("favorite").setValue(favorite)
-}
 }
 
 
